@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Build output
+build/
+dist/
+*.spec
+build.log
+
+# Local-only notes for Claude Code sessions on this machine
+CLAUDE.md
+
+# Claude Code local settings
+.claude/
+
+# Never needed (no secrets to configure); ignored so one can't be committed by accident
+.env
+.env.*
