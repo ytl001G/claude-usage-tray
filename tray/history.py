@@ -14,6 +14,8 @@ HEARTBEAT = 3600         # write a row at least this often even when nothing cha
 RECENT = 24 * 3600       # the "last 24h" rate shown next to the weekly average
 MIN_SPAN = 3 * 3600      # the recent rate needs readings spanning at least this long
 EARLY = 12 * 3600        # no projection this soon after the reset: one burst would read as "runs out"
+BUCKET = 3 * 3600        # usage bars behind the graph: % used per 3 hours
+GUESS_GAP = 2 * 3600     # readings further apart than this (app off) give estimated bars
 
 
 def week_key(resets: float) -> int:
@@ -114,6 +116,39 @@ def _slope(points: list[tuple[float, float]]) -> float | None:
     if var == 0:
         return None
     return sum((t - mt) * (p - mp) for t, p in points) / var
+
+
+@dataclass
+class Bar:
+    start: float              # bucket start, epoch seconds
+    pct: float                # % used during the bucket
+    guessed: bool             # mostly spread over a stretch with no readings
+
+
+def usage_bars(points: list[tuple[float, int]], pct: int, start: float, now: float) -> list[Bar]:
+    """% used per BUCKET from the week start to now: the cumulative line, differentiated.
+
+    Readings are joined by straight lines, so a rise is spread over the time between the two
+    readings around it. With the app polling that is a few minutes; across a gap (PC off) the
+    rise is spread evenly over the gap instead of piling up on the first reading after it,
+    and those buckets are marked guessed."""
+    series = [(start, 0)] + sorted((t, p) for t, p in points if start < t < now) + [(now, pct)]
+    n = max(1, int((now - start) // BUCKET) + 1)
+    seen = [0.0] * n
+    guessed = [0.0] * n
+    for (t0, p0), (t1, p1) in zip(series, series[1:]):
+        rise = p1 - p0
+        if t1 <= t0 or rise <= 0:   # the server value may dip by 1%: not negative usage
+            continue
+        target = guessed if t1 - t0 > GUESS_GAP else seen
+        i = int((t0 - start) // BUCKET)
+        while i < n and start + i * BUCKET < t1:
+            lo = max(t0, start + i * BUCKET)
+            hi = min(t1, start + (i + 1) * BUCKET)
+            if hi > lo:
+                target[i] += rise * (hi - lo) / (t1 - t0)
+            i += 1
+    return [Bar(start + i * BUCKET, seen[i] + guessed[i], guessed[i] > seen[i]) for i in range(n)]
 
 
 def project(points: list[tuple[float, int]], pct: int, resets: float,

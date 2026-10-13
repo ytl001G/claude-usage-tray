@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from tray.history import WEEK, History, project, week_key
+from tray.history import BUCKET, WEEK, History, project, usage_bars, week_key
 from tray.usage_api import Usage
 
 H = 3600
@@ -204,3 +204,47 @@ def test_write_errors_are_swallowed(tmp_path, monkeypatch):
     monkeypatch.setattr(h, "_write", boom)
     h.add(usage(START + 10 * H, 30))          # must not raise
     assert h.rows and h.rows[-1]["week"] == 30
+
+
+# ---------------------------------------------------------------- usage bars
+
+def test_bars_add_up_to_this_week():
+    pts = [(START + i * 300, min(40, i // 4)) for i in range(1, 600)]
+    bars = usage_bars(pts, 40, START, START + 50 * H)
+    assert len(bars) == 17                                   # 16 full buckets + the one in progress
+    assert [b.start for b in bars[:2]] == [START, START + BUCKET]
+    assert sum(b.pct for b in bars) == pytest.approx(40)
+    assert not any(b.guessed for b in bars)
+
+
+def test_bars_show_when_it_was_used():
+    pts = [(START + 7 * H, 0), (START + 7 * H + 300, 5), (START + 8 * H, 5)]
+    bars = usage_bars(pts, 5, START, START + 11 * H)
+    assert [round(b.pct, 3) for b in bars] == [0, 0, 5, 0]   # all of it in the 6-9h bucket
+
+
+def test_gap_is_spread_evenly_and_marked_guessed():
+    # App off from 6h to 18h: the 12% that appeared meanwhile is spread over the 4 buckets.
+    pts = [(START + 6 * H, 0), (START + 18 * H, 12)]
+    bars = usage_bars(pts, 12, START, START + 18 * H + 60)
+    assert [round(b.pct, 3) for b in bars[2:6]] == [3, 3, 3, 3]
+    assert [b.guessed for b in bars[2:6]] == [True] * 4
+    assert bars[0].pct == bars[1].pct == 0
+
+
+def test_before_first_reading_counts_from_week_start():
+    bars = usage_bars([(START + 20 * H, 10)], 10, START, START + 20 * H + 60)
+    assert sum(b.pct for b in bars) == pytest.approx(10)
+    assert all(b.guessed for b in bars if b.pct > 0)
+
+
+def test_dips_are_not_negative_usage():
+    pts = [(START + H, 5), (START + H + 300, 4), (START + H + 600, 5)]
+    bars = usage_bars(pts, 5, START, START + 2 * H)
+    assert all(b.pct >= 0 for b in bars)
+
+
+def test_bars_ignore_readings_outside_the_week():
+    pts = [(START - H, 50), (START + H, 2), (START + 9 * H, 60)]
+    bars = usage_bars(pts, 3, START, START + 2 * H)
+    assert len(bars) == 1 and bars[0].pct == pytest.approx(3)

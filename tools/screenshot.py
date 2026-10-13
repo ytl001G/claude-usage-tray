@@ -33,11 +33,33 @@ def unkey(img: Image.Image) -> Image.Image:
     return out
 
 
+def sample_week(start: float, now: float, final: int) -> list[tuple[float, int]]:
+    """History rows for a made-up week: busy afternoons and evenings, idle nights, and one
+    stretch with the PC off (no rows), ending at `final`%."""
+    def busy(t):
+        h = datetime.fromtimestamp(t)
+        weight = {10: 2, 11: 3, 12: 1, 14: 4, 15: 5, 16: 4, 17: 3, 21: 2, 22: 3, 23: 2}.get(h.hour, 0)
+        return weight * (1.6 if h.weekday() in (2, 3) else 1)
+    off = (start + 2 * 86400 + 4 * 3600, start + 2 * 86400 + 17 * 3600)   # Tue 01:00 - 14:00
+    steps = [start + i * 300 for i in range(int((now - start) / 300) + 1)]
+    total = sum(busy(t) for t in steps)
+    rows, used, last = [], 0.0, None
+    for t in steps:
+        used += busy(t) * final / total
+        if off[0] <= t < off[1]:
+            continue
+        pct = int(used)
+        if last is None or pct != last[1] or t - last[0] >= 3600:
+            last = (t, pct)
+            rows.append(last)
+    return rows
+
+
 def main() -> None:
     now = datetime(2026, 10, 9, 9, 0).timestamp()
     resets = datetime(2026, 10, 10, 21, 0).timestamp()
     start = resets - WEEK
-    pts = [(start + h * 3600, min(82, int(h * 0.62))) for h in range(0, int((now - start) / 3600), 2)]
+    pts = sample_week(start, now, 82)
     last = [(start - WEEK + h * 3600, int(h * 0.5)) for h in range(0, 168, 3)]
     u = Usage(at=now, week=82, week_resets=resets, five=23, five_resets=now + 3 * 3600,
               breakdown=[("Claude Code", 74), ("Chats", 25)])

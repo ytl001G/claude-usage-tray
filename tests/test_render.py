@@ -2,6 +2,7 @@ import re
 from pathlib import Path
 
 import pytest
+from PIL import ImageColor
 
 from tray import render
 from tray.config import asset
@@ -107,7 +108,7 @@ def test_long_footer_does_not_overflow():
 
 
 PALETTE = {render.BG, render.PANEL, render.BORDER, render.TEXT, render.DIM, render.FAINT,
-           render.ORANGE, render.YELLOW, render.RED, render.GREY, render.KEY}
+           render.ORANGE, render.YELLOW, render.RED, render.GREY, render.BAR, render.KEY}
 
 
 @pytest.mark.parametrize("folded", [False, True])
@@ -117,6 +118,25 @@ def test_popup_is_pixel_art(folded):
     img, _ = main_popup(v, folded=folded, now=NOW)
     hexes = {"#%02x%02x%02x" % c for _, c in img.getcolors(10000)}
     assert hexes <= PALETTE
+
+
+def colors(img):
+    return {"#%02x%02x%02x" % c for _, c in img.getcolors(10000)}
+
+
+def test_usage_bars_behind_the_graph():
+    assert render.BAR in colors(main_popup(full_view(), now=NOW)[0])
+    assert render.BAR not in colors(main_popup(full_view(), folded=True, now=NOW)[0])
+    idle = full_view(usage=usage(week=0), points=[(NOW - DAY, 0)], proj=PROJ["collecting"])
+    assert render.BAR not in colors(main_popup(idle, now=NOW)[0])
+
+
+def test_usage_bars_stay_in_the_lower_half():
+    img, _ = main_popup(full_view(), now=NOW)
+    ys = [y for y in range(img.height) for x in range(img.width) if img.getpixel((x, y)) == ImageColor.getrgb(render.BAR)]
+    graph_top = 9 + 18 + 29 + 15 + 15           # rows above the graph box
+    plot_top, plot_bottom = graph_top + 6, graph_top + 112 - 16
+    assert ys and min(ys) >= plot_top + (plot_bottom - plot_top) // 2 - 1 and max(ys) < plot_bottom
 
 
 def test_theme_is_claude_orange():

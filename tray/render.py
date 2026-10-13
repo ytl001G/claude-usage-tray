@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from PIL import Image, ImageDraw, ImageFont
 
 from .config import asset
-from .history import WEEK, Projection
+from .history import BUCKET, WEEK, Projection, usage_bars
 from .text import d_day, weekday, when
 from .usage_api import Usage
 
@@ -16,6 +16,7 @@ BG = "#1c1a17"
 PANEL = "#26231f"
 BORDER = ORANGE
 FAINT = "#463f37"
+BAR = "#4a3329"   # usage bars behind the graph: dim orange, just above the panel
 TEXT = "#f2ede6"
 DIM = "#a39b90"
 YELLOW = "#f2c94c"
@@ -367,6 +368,20 @@ def _graph(d, v: View, x, y, w, h, now):
     py0, py1 = y + 6, y + h - 16
     X = lambda t: round(px0 + (t - start) / WEEK * (px1 - px0))
     Y = lambda pct: round(py1 - min(max(pct, 0), 100) / 100 * (py1 - py0))
+
+    # Backdrop: % used per 3 hours, scaled so the busiest bucket reaches half the height.
+    # Bars over a stretch with no readings are estimates: outline only.
+    bars = usage_bars(v.points, u.week, start, now)
+    peak = max((b.pct for b in bars), default=0)
+    for b in bars:
+        if b.pct <= 0:
+            continue
+        bh = max(1, round(b.pct / peak * (py1 - py0) / 2))
+        xa, xb = X(b.start), X(b.start + BUCKET) - 2
+        if b.guessed:
+            d.rectangle([xa, py1 - max(bh, 2), xb, py1 - 1], outline=BAR)
+        else:
+            d.rectangle([xa, py1 - bh, xb, py1 - 1], fill=BAR)
 
     # Axes and labels.
     for pct in (100, 50, 0):

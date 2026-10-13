@@ -22,7 +22,8 @@ def make_icon(path: Path) -> None:
 
 
 def version_file(path: Path) -> None:
-    nums = tuple(int(x) for x in __version__.split(".")) + (0,)
+    # Windows wants four numbers; a "-dev" suffix only goes into the version strings.
+    nums = tuple(int(x) for x in __version__.split("-")[0].split(".")) + (0,)
     path.write_text(f"""VSVersionInfo(
   ffi=FixedFileInfo(filevers={nums}, prodvers={nums}),
   kids=[StringFileInfo([StringTable('040904B0', [
