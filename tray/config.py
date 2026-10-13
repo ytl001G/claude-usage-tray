@@ -20,7 +20,6 @@ DEFAULT_CONFIG = {
     "poll_minutes": 5,
     "alert_thresholds": [80, 90, 95],
     "relogin_notice_days": 3,
-    "projection_window_hours": 24,
     "popup_seconds": 8,
     "start_with_windows": True,
     "widget_mode": "compact",  # what stays on screen: "compact" bar or the tiny "mini" chip
@@ -39,7 +38,6 @@ RANGES = {
     "poll_minutes": (1, 60),
     "popup_seconds": (2, 60),
     "relogin_notice_days": (1, 14),
-    "projection_window_hours": (3, 168),
 }
 
 

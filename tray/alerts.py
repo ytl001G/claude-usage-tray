@@ -54,8 +54,8 @@ class Alerts:
             hours = max(0, round((u.week_resets - p.eta) / 3600))
             exhaust_lines = [f"이 속도면 {when(p.eta)} 소진", f"(리셋 {hours}시간 전)"]
 
-        # Projection turned to "runs out before reset". The 24h window slides, so the
-        # status can flip back and forth; say it at most once a day.
+        # Projection turned to "runs out before reset". The average rises with each burst
+        # and sags while idle, so the status can flip back and forth; say it at most once a day.
         prev = self.s.get("proj")
         flipped = (p.status == "exhaust" and prev != "exhaust" and p.eta
                    and now - self.s.get("proj_last", 0) >= DAY)

@@ -60,7 +60,8 @@ def test_projection_flip_to_exhaust(tmp_path):
 
 
 def test_projection_flapping_alerts_at_most_daily(tmp_path):
-    """The 24h window slides, so the status can cross the line several times a day."""
+    """The average rises with bursts and sags while idle, so the status can cross the line
+    several times a day."""
     a = make(tmp_path)
     ex = Projection("exhaust", 30, 30, RESETS - 3600, 100)
     a.check_usage(U(50), ex, now=NOW)

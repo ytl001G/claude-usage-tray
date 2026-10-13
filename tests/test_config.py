@@ -43,7 +43,6 @@ def test_broken_file_uses_defaults_but_is_flagged(cfg_file, bad):
     ("poll_minutes", "abc", 5), ("poll_minutes", None, 5), ("poll_minutes", 2.5, 2.5),
     ("popup_seconds", 0, 2), ("popup_seconds", 1000, 60),
     ("relogin_notice_days", 0, 1), ("relogin_notice_days", 99, 14),
-    ("projection_window_hours", 1, 3), ("projection_window_hours", 500, 168),
     ("start_with_windows", "yes", True), ("start_with_windows", 0, True), ("start_with_windows", False, False),
     ("widget_mode", "mini", "mini"), ("widget_mode", "compact", "compact"), ("widget_mode", "full", "compact"),
     ("widget_mode", "hidden", "compact"), ("widget_mode", 3, "compact"),

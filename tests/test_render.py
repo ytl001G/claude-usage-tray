@@ -249,7 +249,7 @@ MENU = [("refresh", "지금 새로고침", "cmd"), ("-", "", "sep"),
         ("full", "크게 (그래프)", "radio"), ("compact", "작은 막대", "radio"), ("mini", "아주 작게 (아이콘)", "radio"),
         ("reset", "위치 초기화", "cmd"), ("-", "", "sep"),
         ("config", "설정 파일 열기", "cmd"), ("startup", "Windows 시작 시 실행", "check"), ("-", "", "sep"),
-        ("quit", "종료 (v1.0.0)", "cmd")]
+        ("quit", "종료 (v1.1.0)", "cmd")]
 
 
 def test_menu_has_a_region_per_item():

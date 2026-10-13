@@ -11,6 +11,7 @@ log = logging.getLogger(__name__)
 
 WEEK = 7 * 86400
 HEARTBEAT = 3600         # write a row at least this often even when nothing changed
+RECENT = 24 * 3600       # the "last 24h" rate shown next to the weekly average
 MIN_SPAN = 3 * 3600      # the recent rate needs readings spanning at least this long
 EARLY = 12 * 3600        # no projection this soon after the reset: one burst would read as "runs out"
 
@@ -98,8 +99,8 @@ class Projection:
     status: str               # collecting | ok | tight | exhaust | full
     avg_per_day: float | None
     recent_per_day: float | None
-    eta: float | None         # epoch seconds of 100%, using the faster rate
-    final_pct: float | None   # expected % at reset, using the faster rate
+    eta: float | None         # epoch seconds of 100%, at the weekly average rate
+    final_pct: float | None   # expected % at reset, at the weekly average rate
 
 
 def _slope(points: list[tuple[float, float]]) -> float | None:
@@ -116,7 +117,7 @@ def _slope(points: list[tuple[float, float]]) -> float | None:
 
 
 def project(points: list[tuple[float, int]], pct: int, resets: float,
-            window_hours: float = 24, now: float | None = None) -> Projection:
+            now: float | None = None) -> Projection:
     now = now or time.time()
     start = resets - WEEK
     if pct >= 100:
@@ -124,11 +125,13 @@ def project(points: list[tuple[float, int]], pct: int, resets: float,
     if now - start < EARLY:
         return Projection("collecting", None, None, None, None)
 
-    # The week starts at 0%, so the weekly average needs no history at all.
+    # The week starts at 0%, so the weekly average needs no history at all. The projection
+    # always uses it: this week's cumulative usage over the time elapsed.
     avg = pct / (now - start)
 
-    # Recent rate: regression over the window, anchored at 0% if the week began inside it.
-    lo = max(now - window_hours * 3600, start)
+    # Recent rate, shown for reference only: regression over the last 24h, anchored at 0%
+    # if the week began inside it.
+    lo = max(now - RECENT, start)
     window = [(t, p) for t, p in points if lo <= t <= now]
     if start >= lo:
         window.insert(0, (start, 0))
@@ -137,9 +140,8 @@ def project(points: list[tuple[float, int]], pct: int, resets: float,
     if recent is not None:
         recent = max(recent, 0.0)
 
-    rate = max(r for r in (avg, recent) if r is not None)
-    eta = now + (100 - pct) / rate if rate > 0 else None
-    final = pct + rate * (resets - now)
+    eta = now + (100 - pct) / avg if avg > 0 else None
+    final = pct + avg * (resets - now)
 
     if eta is not None and eta < resets:
         status = "exhaust"

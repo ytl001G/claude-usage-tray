@@ -10,8 +10,7 @@ from tray.usage_api import AuthError, Credentials, Usage
 DAY = 86400
 NOW = 1_800_000_000.0
 RESETS = NOW + 2 * DAY
-CFG = {"poll_minutes": 5, "alert_thresholds": [80, 90, 95], "relogin_notice_days": 3,
-       "projection_window_hours": 24}
+CFG = {"poll_minutes": 5, "alert_thresholds": [80, 90, 95], "relogin_notice_days": 3}
 
 
 def good_creds(expires_in=4 * 3600, login_left=20 * DAY):

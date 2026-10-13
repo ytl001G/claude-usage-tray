@@ -104,16 +104,26 @@ def test_tight_when_running_out_just_after_reset():
     assert p.status == "tight"
 
 
-def test_recent_rate_uses_regression_and_faster_rate_wins():
+def test_recent_rate_uses_regression_but_projection_uses_weekly_average():
     now = START + 4 * 86400
     # Slow week so far, but the last 24h went 40 -> 64 in 1% steps.
     pts = [(now - 24 * H + i * H, 40 + i) for i in range(25)]
     p = project(pts, pct=64, resets=RESETS, now=now)
     assert p.recent_per_day == pytest.approx(24, abs=0.5)
     assert p.avg_per_day == pytest.approx(16)
-    # 36% left at 24%/day -> 1.5 days, reset is in 3 days -> runs out first.
+    # 36% left at the 16%/day average -> 2.25 days, reset is in 3 days -> runs out first.
     assert p.status == "exhaust"
-    assert p.eta == pytest.approx(now + 1.5 * 86400, rel=0.02)
+    assert p.eta == pytest.approx(now + 2.25 * 86400)
+
+
+def test_fast_last_day_does_not_override_weekly_average():
+    now = START + 4 * 86400
+    # 40% over 4 days (10%/day), the last 24h all of it: 0 -> 40.
+    pts = [(now - 24 * H + i * H, i * 40 / 24) for i in range(25)]
+    p = project(pts, pct=40, resets=RESETS, now=now)
+    assert p.recent_per_day == pytest.approx(40, abs=1)
+    assert p.status == "ok"
+    assert p.final_pct == pytest.approx(70)
 
 
 def test_idle_last_day_falls_back_to_average():

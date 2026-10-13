@@ -127,7 +127,7 @@ class Controller:
             # Project from when the reading was taken, not from now: while the data is
             # stale we don't know what happened since.
             view.proj = project(self.history.week_points(u.week_resets), u.week, u.week_resets,
-                                self.cfg["projection_window_hours"], now=min(u.at, now))
+                                now=min(u.at, now))
             view.points = self.history.week_points(u.week_resets)
             view.last_points = self.history.last_week_points(u.week_resets)
             view.stale_minutes = max(0, int((now - u.at) // 60))

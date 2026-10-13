@@ -343,10 +343,10 @@ def _verdict(u: Usage, p: Projection | None, now):
     if not p or p.status == "collecting":
         return "예측 준비 중 · 몇 시간 뒤 표시", None, DIM
     rates = []
-    if p.recent_per_day is not None:
-        rates.append(f"24시간 +{p.recent_per_day:.0f}%/일")
     if p.avg_per_day is not None:
         rates.append(f"평균 +{p.avg_per_day:.0f}%/일")
+    if p.recent_per_day is not None:
+        rates.append(f"24시간 +{p.recent_per_day:.0f}%/일")
     rate_line = " · ".join(rates) or None
     if p.status == "full":
         return f"! 주간 한도 소진 · {when(u.week_resets, now)} 리셋", None, RED
