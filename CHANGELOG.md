@@ -7,7 +7,7 @@
 - **PATCH:** 새 기능 없는 버그 수정, 문구·빌드 수정
 - 배포 전 버전은 `-dev`가 붙고(예: `1.2.0-dev`), 바뀐 점은 [Unreleased]에 모읍니다.
 
-## [Unreleased]
+## [1.2.0] - 2026-10-13
 
 - 큰 화면 그래프 뒤에 3시간마다 쓴 사용량을 막대로 보여줍니다. 누적 그래프를 구간별로 나눈 값이고, 가장 많이 쓴 구간이 그래프 높이의 절반이 되게 맞춥니다.
 - 앱이 꺼져 있어 기록이 없는 구간은 늘어난 양을 고르게 나눠 테두리만 있는 막대로 그립니다.
@@ -30,6 +30,7 @@
 - 포커스를 가져가지 않음, 소리 없음, 전체 화면·잠금 중에는 숨김
 - Windows 시작 시 실행, 모니터별 배율 대응, exe SHA-256 체크섬 제공
 
-[Unreleased]: https://github.com/ytl001G/claude-usage-tray/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/ytl001G/claude-usage-tray/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/ytl001G/claude-usage-tray/releases/tag/v1.2.0
 [1.1.0]: https://github.com/ytl001G/claude-usage-tray/releases/tag/v1.1.0
 [1.0.0]: https://github.com/ytl001G/claude-usage-tray/releases/tag/v1.0.0

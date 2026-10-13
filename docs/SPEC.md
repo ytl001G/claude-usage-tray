@@ -1,6 +1,6 @@
 # 설계 문서
 
-Claude Usage Tray v1.1.0의 동작과 구조입니다. 사용법은 [README](../README.md), 설정 파일과 동작 원리 요약은 [ADVANCED.md](ADVANCED.md)에 있습니다.
+Claude Usage Tray v1.2.0의 동작과 구조입니다. 사용법은 [README](../README.md), 설정 파일과 동작 원리 요약은 [ADVANCED.md](ADVANCED.md)에 있습니다.
 
 ## 1. 목표
 
