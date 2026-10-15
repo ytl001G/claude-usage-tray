@@ -1,11 +1,11 @@
 """API credit balance kept by claude-mode, a Claude Code mod that runs work on API credit.
 
-There is no API to read the Console balance with a user key, so the mod keeps two files:
-`credit.json` holds a balance the user read off the Console (`/mode credit 98.20`) and
-`usage.jsonl` gets one line per worker job with its cost. The balance shown is that
-reading minus every cost logged after it. The credit is a monthly grant with no
-carry-over, so once a grant day passes the reading no longer counts: the balance starts
-again from the monthly amount minus what was used since the grant."""
+There is no API to read the Console balance with a user key, so the balance is worked out
+from `usage.jsonl`, where the mod writes one line per worker job with its cost. The credit
+is a monthly grant with no carry-over, so the balance is the monthly amount minus what was
+used since the last grant day. `credit.json` is an optional correction: a balance the user
+read off the Console (`/mode credit 98.20`) counts instead until the next grant day passes.
+Without `usage.jsonl` the mod isn't in use and there is no line."""
 import calendar
 import json
 import logging
@@ -29,7 +29,7 @@ class Credit:
     balance: float      # estimated balance left now (USD)
     monthly: float      # amount granted each month
     next_grant: float   # when the next grant lands (local midnight of the grant day)
-    as_of: float        # when the balance was last read off the Console
+    as_of: float | None # when the balance was last read off the Console (None: never)
 
     @property
     def used(self) -> float:
@@ -86,21 +86,27 @@ def _costs(path: Path) -> list[tuple[float, float]]:
     return out
 
 
-def read_credit(now: float, credit_path: Path | None = None, usage_path: Path | None = None) -> Credit | None:
-    """None when the mod isn't set up (no balance read yet) or the file is unreadable."""
-    credit_path = credit_path or CREDIT_FILE
-    usage_path = usage_path or USAGE_FILE
+def _reading(path: Path) -> dict | None:
+    """The user's Console reading from credit.json, or None when there is no usable one."""
     try:
-        raw = json.loads(credit_path.read_text(encoding="utf-8"))
+        raw = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return None
     except (OSError, ValueError):
         log.warning("credit: credit.json unreadable")
         return None
-    if not isinstance(raw, dict):
-        return None
+    return raw if isinstance(raw, dict) else None
+
+
+def read_credit(now: float, credit_path: Path | None = None, usage_path: Path | None = None) -> Credit | None:
+    """None when the mod isn't in use (no usage.jsonl and no reading)."""
+    credit_path = credit_path or CREDIT_FILE
+    usage_path = usage_path or USAGE_FILE
+    raw = _reading(credit_path) or {}
     balance, as_of = _num(raw.get("balance")), _num(raw.get("as_of"))
     if balance is None or as_of is None or balance < 0:
+        balance = as_of = None
+    if as_of is None and not usage_path.exists():
         return None
     monthly = _num(raw.get("monthly"))
     monthly = monthly if monthly is not None and monthly > 0 else DEFAULT_MONTHLY
@@ -108,8 +114,8 @@ def read_credit(now: float, credit_path: Path | None = None, usage_path: Path | 
     day = int(day) if day is not None and 1 <= day <= 31 else DEFAULT_GRANT_DAY
 
     granted = last_grant(now, day)
-    if granted > as_of:
-        base, since = monthly, granted   # a grant after the reading replaced what was left
+    if as_of is None or granted > as_of:
+        base, since = monthly, granted   # no reading, or a grant after it replaced what was left
     else:
         base, since = balance, as_of
     spent = sum(cost for at, cost in _costs(usage_path) if at > since)

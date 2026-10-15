@@ -85,15 +85,39 @@ def test_no_usage_file_is_fine(tmp_path):
     assert read_credit(ts(2026, 10, 16), c, tmp_path / "missing.jsonl").balance == 10
 
 
+def test_without_a_reading_the_grant_minus_jobs_since_the_grant_day(tmp_path):
+    _, u = write(tmp_path, "{}", [{"at": ts(2026, 9, 26), "cost": 40.0},   # last month's grant
+                                  {"at": ts(2026, 10, 15, 9), "cost": 1.25},
+                                  {"at": ts(2026, 10, 15, 10), "cost": 0.5}])
+    got = read_credit(ts(2026, 10, 15, 12), tmp_path / "none.json", u)
+    assert got.balance == pytest.approx(98.25)
+    assert got.monthly == credit.DEFAULT_MONTHLY and got.as_of is None
+    assert got.next_grant == ts(2026, 10, 27)
+
+
+def test_without_a_reading_a_new_grant_starts_full(tmp_path):
+    _, u = write(tmp_path, "{}", [{"at": ts(2026, 10, 20), "cost": 30.0}])
+    assert read_credit(ts(2026, 10, 27, 1), tmp_path / "none.json", u).balance == 100
+
+
+def test_mod_in_use_with_no_jobs_yet_shows_the_full_grant(tmp_path):
+    _, u = write(tmp_path, "{}")
+    assert read_credit(ts(2026, 10, 16), tmp_path / "none.json", u).balance == 100
+
+
 @pytest.mark.parametrize("bad", ["", "{", "[]", json.dumps({"as_of": 1}), json.dumps({"balance": 5}),
                                  json.dumps({"balance": -1, "as_of": 1}), json.dumps({"balance": True, "as_of": 1})])
-def test_unusable_credit_file_means_no_line(tmp_path, bad):
-    c, u = write(tmp_path, bad)
-    assert read_credit(ts(2026, 10, 16), c, u) is None
+def test_unusable_credit_file_falls_back_to_the_grant(tmp_path, bad):
+    c, u = write(tmp_path, bad, [{"at": ts(2026, 10, 15), "cost": 2.0}])
+    got = read_credit(ts(2026, 10, 16), c, u)
+    assert got.balance == pytest.approx(98.0) and got.as_of is None
 
 
-def test_not_set_up_means_no_line(tmp_path):
+def test_not_in_use_means_no_line(tmp_path):
     assert read_credit(NOW, tmp_path / "none.json", tmp_path / "none.jsonl") is None
+    c = tmp_path / "bad.json"
+    c.write_text("{", encoding="utf-8")
+    assert read_credit(NOW, c, tmp_path / "none.jsonl") is None
 
 
 def test_default_paths_are_the_mod_folder():
