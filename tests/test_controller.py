@@ -367,3 +367,32 @@ def test_auth_failure_offers_login_in_the_widget(tmp_path, clock):
 def test_no_login_prompt_when_fine(tmp_path, clock):
     view, _ = make(tmp_path, Fake(), clock).poll()
     assert not view.needs_login
+
+
+def with_credit(tmp_path, clock, read_credit):
+    f = Fake()
+    return Controller(CFG, History(tmp_path / "h.jsonl"), Alerts(CFG, path=tmp_path / "s.json"),
+                      read_credentials=f.read_credentials, fetch_usage=f.fetch_usage,
+                      refresh_token=f.refresh_token, read_snapshot=f.read_snapshot,
+                      read_credit=read_credit, clock=lambda: clock["t"])
+
+
+def test_credit_is_passed_to_the_view(tmp_path, clock):
+    from tray.credit import Credit
+    got = Credit(balance=96.9, monthly=100.0, next_grant=NOW + DAY, as_of=NOW)
+    seen = []
+    view, _ = with_credit(tmp_path, clock, lambda now: seen.append(now) or got).poll()
+    assert view.credit is got and seen == [NOW]
+
+
+def test_credit_failure_does_not_break_the_poll(tmp_path, clock):
+    def boom(now):
+        raise OSError("disk")
+
+    view, _ = with_credit(tmp_path, clock, boom).poll()
+    assert view.usage.week == 50 and view.credit is None
+
+
+def test_no_credit_set_up_means_no_line(tmp_path, clock):
+    view, _ = make(tmp_path, Fake(), clock).poll()
+    assert view.credit is None

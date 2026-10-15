@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from PIL import Image, ImageDraw, ImageFont
 
 from .config import asset
+from .credit import Credit
 from .history import BUCKET, WEEK, Projection, usage_bars
 from .text import d_day, weekday, when
 from .usage_api import Usage
@@ -188,6 +189,7 @@ class View:
     needs_login: bool = False       # the token is missing/rejected right now
     stale_minutes: int | None = None
     message: str | None = None      # shown instead of data when there is none
+    credit: Credit | None = None    # API credit balance, when the claude-mode mod keeps one
 
 
 def size_buttons(d, x1, y, folded: bool, regions):
@@ -275,7 +277,11 @@ def main_popup(v: View, folded: bool = False, now: float | None = None):
             text_r(d, X1, y + 1, f"{when(u.five_resets, now)} 리셋", F10(), DIM)
         y += 16
 
-    # 5. Footer: where the usage went (or why the data is old), and how fresh it is.
+    # 5. API credit balance (only while the claude-mode mod keeps one).
+    if v.credit:
+        y = _credit_row(d, v.credit, y, X1)
+
+    # 6. Footer: where the usage went (or why the data is old), and how fresh it is.
     left, right, stale = footer(v, now, W)
     text_r(d, X1, y, right, F10(), GREY if stale else DIM)
     d.text((X0, y), left, font=F10(), fill=GREY if stale else DIM)
@@ -315,6 +321,23 @@ def footer(v: View, now: float, w: int = W_FULL) -> tuple[str, str, bool]:
         wanted.append(f"로그인 {d_day(v.login_expires, now)}")
     wanted += [f"{name} {pct}%" for name, pct in u.scoped[:1]]
     return _fit_parts(wanted, F10(), left_w), right, stale
+
+
+def _credit_row(d, c: Credit, y, X1) -> int:
+    """'API  $97.82 [gauge]   사용 $2.18 · 10/27 +$100', laid out like the 5-hour row."""
+    pct = c.balance / c.monthly * 100
+    cc = RED if pct < 5 else YELLOW if pct < 20 else ORANGE
+    d.text((X0, y + 1), "API", font=F10(), fill=DIM)
+    amount = f"${c.balance:.2f}"
+    # Below 5% the gauge has no block left to color, so the amount carries the warning too.
+    d.text((X0 + 30, y), amount, font=F12(), fill=TEXT if cc == ORANGE else cc)
+    gx = X0 + 30 + max(text_w(amount, F12()), 32) + 6
+    gauge(d, gx, y + 3, pct, 10, 8, 6, cc)
+    t = time.localtime(c.next_grant)
+    right = _fit_parts([f"사용 ${c.used:.2f}", f"{t.tm_mon}/{t.tm_mday} +${c.monthly:.0f}"],
+                       F10(), X1 - (gx + 10 * 9) - 8)
+    text_r(d, X1, y + 1, right, F10(), DIM)
+    return y + 16
 
 
 def _frame(body, w, h, regions):

@@ -3,7 +3,7 @@ import logging
 import time
 from dataclasses import replace
 
-from . import usage_api
+from . import credit, usage_api
 from .alerts import Alert, Alerts
 from .history import WEEK, History, project
 from .render import STALE_MINUTES, View
@@ -20,7 +20,7 @@ class Controller:
     def __init__(self, cfg: dict, history: History, alerts: Alerts, *,
                  read_credentials=usage_api.read_credentials, fetch_usage=usage_api.fetch_usage,
                  refresh_token=usage_api.refresh_token, read_snapshot=usage_api.read_snapshot,
-                 clock=time.time):
+                 read_credit=credit.read_credit, clock=time.time):
         self.cfg = cfg
         self.history = history
         self.alerts = alerts
@@ -28,6 +28,7 @@ class Controller:
         self._fetch_usage = fetch_usage
         self._refresh_token = refresh_token
         self._read_snapshot = read_snapshot
+        self._read_credit = read_credit
         self._clock = clock
         self.failures = 0
         self.last: Usage | None = history.latest()   # an offline start still shows something
@@ -109,6 +110,10 @@ class Controller:
                 self.history.add(snap)
 
         view = View(usage=None, proj=None, message=message, needs_login=self._auth_failed)
+        try:
+            view.credit = self._read_credit(now)
+        except Exception as e:  # a side line: never let it break the poll
+            log.warning("credit: %s", type(e).__name__)
         if creds and creds.refresh_expires_at:
             view.login_expires = creds.refresh_expires_at
             view.login_notice = creds.refresh_expires_at - now <= self.cfg["relogin_notice_days"] * 86400
